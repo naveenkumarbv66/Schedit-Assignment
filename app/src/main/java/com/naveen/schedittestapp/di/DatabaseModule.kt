@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.naveen.schedittestapp.data.dao.EmployeeDao
 import com.naveen.schedittestapp.data.dao.ShiftAssignmentDao
 import com.naveen.schedittestapp.data.dao.ShiftDao
+import com.naveen.schedittestapp.data.dao.ShiftTemplateDao
 import com.naveen.schedittestapp.data.database.ScheduleDatabase
 import com.naveen.schedittestapp.data.repository.ScheduleRepository
 import dagger.Module
@@ -24,7 +25,9 @@ object DatabaseModule {
             context,
             ScheduleDatabase::class.java,
             "schedule_database"
-        ).build()
+        )
+        .fallbackToDestructiveMigration() // For development - in production, use proper migrations
+        .build()
     }
 
     @Provides
@@ -43,13 +46,19 @@ object DatabaseModule {
     }
 
     @Provides
+    fun provideShiftTemplateDao(database: ScheduleDatabase): ShiftTemplateDao {
+        return database.shiftTemplateDao()
+    }
+
+    @Provides
     @Singleton
     fun provideScheduleRepository(
         employeeDao: EmployeeDao,
         shiftDao: ShiftDao,
-        shiftAssignmentDao: ShiftAssignmentDao
+        shiftAssignmentDao: ShiftAssignmentDao,
+        shiftTemplateDao: ShiftTemplateDao
     ): ScheduleRepository {
-        return ScheduleRepository(employeeDao, shiftDao, shiftAssignmentDao)
+        return ScheduleRepository(employeeDao, shiftDao, shiftAssignmentDao, shiftTemplateDao)
     }
 }
 

@@ -30,6 +30,14 @@ A native Android application for workforce scheduling that allows managers to vi
    - Employee-centric view (all shifts for an employee)
    - Shift-centric view (all assignments for a shift)
 
+5. **Shift Templates** ✨
+   - Create reusable shift templates with recurring patterns
+   - Define shift details: location, time, duration, required skills, staffing
+   - Support for daily or specific day-of-week templates
+   - Generate multiple shifts from templates for a date range
+   - Edit and delete templates
+   - Efficient bulk shift creation
+
 ## 🏗️ Architecture
 
 ### Architecture Pattern: MVVM (Model-View-ViewModel)
@@ -49,6 +57,7 @@ The app follows the **MVVM architecture pattern** with clear separation of conce
 │  - EmployeesViewModel                   │
 │  - ScheduleViewModel                    │
 │  - AssignmentViewModel                  │
+│  - ShiftTemplatesViewModel              │
 └─────────────────┬───────────────────────┘
                   │
 ┌─────────────────▼───────────────────────┐
@@ -62,6 +71,7 @@ The app follows the **MVVM architecture pattern** with clear separation of conce
 │  - Room Database                        │
 │  - DAOs (EmployeeDao, ShiftDao, etc.)  │
 │  - Entities (Employee, Shift, etc.)     │
+│  - ShiftTemplate entity                 │
 └─────────────────────────────────────────┘
 ```
 
@@ -151,6 +161,7 @@ app/
 │   │   │   │   ├── employees/         # Employee screens
 │   │   │   │   ├── schedule/          # Schedule screens
 │   │   │   │   ├── shifts/            # Shift screens
+│   │   │   │   ├── templates/         # Shift templates screens
 │   │   │   │   └── theme/              # App theme
 │   │   │   ├── MainActivity.kt
 │   │   │   └── ScheduleApplication.kt
@@ -219,6 +230,12 @@ app/
 - Compile-time query validation
 - Offline-first approach
 
+**Database Entities**:
+- `Employee`: Employee information with skills and hour limits
+- `Shift`: Shift details with time, location, and requirements
+- `ShiftAssignment`: Many-to-many relationship between employees and shifts
+- `ShiftTemplate`: Reusable shift patterns for bulk generation
+
 ### 4. Hilt for Dependency Injection
 
 **Decision**: Use Hilt instead of manual DI or Koin
@@ -270,6 +287,59 @@ The app enforces the following scheduling rules:
    - Implicitly checked through overlap detection
    - Can be extended for explicit availability windows
 
+## 📋 Shift Templates Feature
+
+### Overview
+
+Shift Templates allow you to create reusable shift patterns and generate multiple shifts efficiently. This feature is perfect for recurring schedules like weekly retail shifts, daily kitchen coverage, or regular cafe operations.
+
+### How to Use Shift Templates
+
+1. **Access Templates**
+   - Navigate to the Shifts screen
+   - Tap the Templates icon (📅) in the top-right corner
+   - Or use the navigation menu
+
+2. **Create a Template**
+   - Tap the "+" (Add) button
+   - Fill in template details:
+     - **Name**: Descriptive name (e.g., "Morning Retail Shift")
+     - **Location**: Where the shift takes place
+     - **Start Time**: Hour and minute (24-hour format)
+     - **Duration**: Number of hours
+     - **Required Skills**: Comma-separated list (e.g., "Cashier, Supervisor")
+     - **Minimum Staffing**: Number of employees needed
+     - **Day Pattern**: 
+       - Select "Daily" for every day
+       - Or select specific days (Mon, Tue, Wed, etc.)
+
+3. **Generate Shifts from Template**
+   - Open a template card
+   - Tap "Generate Shifts" button
+   - Enter start date and end date (format: YYYY-MM-DD)
+   - Tap "Generate"
+   - Shifts are automatically created based on the template settings
+
+4. **Manage Templates**
+   - **Edit**: Tap the edit icon on any template card
+   - **Delete**: Tap the delete icon to remove a template
+   - **View**: Tap a template card to see details
+
+### Template Features
+
+- **Flexible Scheduling**: Create templates for daily or specific day-of-week patterns
+- **Bulk Generation**: Generate multiple shifts at once for a date range
+- **Reusable Patterns**: Save common shift patterns for quick reuse
+- **Time Management**: Set start time and duration for consistent scheduling
+- **Skill Requirements**: Define required skills that apply to all generated shifts
+- **Staffing Levels**: Set minimum staffing requirements per template
+
+### Example Use Cases
+
+- **Weekly Retail Shifts**: Create a template for "Monday-Friday 9AM-5PM Retail" and generate for the entire month
+- **Daily Kitchen Coverage**: Template for "Daily 2PM-10PM Kitchen" to ensure consistent coverage
+- **Weekend Shifts**: Template for "Saturday-Sunday 6AM-2PM Cafe" for weekend operations
+
 ## 📝 Sample Data
 
 The app includes sample data that is automatically loaded on first launch:
@@ -300,19 +370,25 @@ The app includes sample data that is automatically loaded on first launch:
 1. **No Calendar View**: Currently shows list view only (calendar view is a bonus feature)
 2. **No Rest Period Validation**: Minimum rest periods between shifts not implemented
 3. **No Availability Windows**: Employees don't have explicit availability schedules
-4. **No Shift Templates**: Cannot create recurring shifts
-5. **No Notifications**: No push notifications for shift assignments
+4. **No Notifications**: No push notifications for shift assignments
+5. **Basic Date Input**: Date selection in templates uses text input (could be improved with date picker)
 
 ### Future Improvements
 
 1. **Calendar View**: Visual calendar representation of shifts
 2. **Rest Period Validation**: Enforce minimum rest between shifts
 3. **Availability Management**: Allow employees to set availability windows
-4. **Shift Templates**: Create and manage recurring shift patterns
+4. **Enhanced Templates**: 
+   - Template preview before generation
+   - Template duplication
+   - Advanced date picker UI
+   - Template usage statistics
 5. **Notifications**: Push notifications for assignments and reminders
 6. **Offline Sync**: Better offline support with sync capabilities
 7. **Export/Import**: Export schedules to CSV/PDF
 8. **Multi-language Support**: Internationalization
+9. **Template Scheduling**: Schedule automatic shift generation
+10. **Template Groups**: Organize templates by department or location
 
 ## 📄 License
 

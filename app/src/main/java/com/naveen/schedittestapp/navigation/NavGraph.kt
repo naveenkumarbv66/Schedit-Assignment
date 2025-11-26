@@ -10,6 +10,7 @@ import com.naveen.schedittestapp.ui.employees.EmployeesScreen
 import com.naveen.schedittestapp.ui.schedule.ScheduleScreen
 import com.naveen.schedittestapp.ui.shifts.ShiftDetailScreen
 import com.naveen.schedittestapp.ui.shifts.ShiftsScreen
+import com.naveen.schedittestapp.ui.templates.ShiftTemplatesScreen
 
 sealed class Screen(val route: String) {
     object Shifts : Screen("shifts")
@@ -22,6 +23,10 @@ sealed class Screen(val route: String) {
     }
     object Schedule : Screen("schedule")
     object Assignment : Screen("assignment")
+    object Templates : Screen("templates")
+    object TemplateDetail : Screen("template_detail/{templateId}") {
+        fun createRoute(templateId: Long) = "template_detail/$templateId"
+    }
 }
 
 @Composable
@@ -43,6 +48,9 @@ fun NavGraph(navController: NavHostController) {
                 },
                 onNavigateToAssignment = {
                     navController.navigate(Screen.Assignment.route)
+                },
+                onNavigateToTemplates = {
+                    navController.navigate(Screen.Templates.route)
                 }
             )
         }
@@ -106,6 +114,15 @@ fun NavGraph(navController: NavHostController) {
                 },
                 onNavigateToEmployee = { employeeId ->
                     navController.navigate(Screen.EmployeeDetail.createRoute(employeeId))
+                }
+            )
+        }
+        
+        composable(Screen.Templates.route) {
+            ShiftTemplatesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onTemplateClick = { templateId ->
+                    // Could navigate to template detail if needed
                 }
             )
         }

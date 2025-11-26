@@ -24,6 +24,7 @@ fun ShiftsScreen(
     onNavigateToSchedule: () -> Unit,
     onNavigateToEmployees: () -> Unit,
     onNavigateToAssignment: () -> Unit,
+    onNavigateToTemplates: () -> Unit = {},
     viewModel: ShiftsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -45,6 +46,9 @@ fun ShiftsScreen(
                     }
                     IconButton(onClick = onNavigateToAssignment) {
                         Icon(Icons.Default.Assignment, contentDescription = "Assign")
+                    }
+                    IconButton(onClick = onNavigateToTemplates) {
+                        Icon(Icons.Default.Schedule, contentDescription = "Templates")
                     }
                 }
             )

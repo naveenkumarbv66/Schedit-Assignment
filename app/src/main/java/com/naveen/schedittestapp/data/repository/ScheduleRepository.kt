@@ -3,9 +3,11 @@ package com.naveen.schedittestapp.data.repository
 import com.naveen.schedittestapp.data.dao.EmployeeDao
 import com.naveen.schedittestapp.data.dao.ShiftAssignmentDao
 import com.naveen.schedittestapp.data.dao.ShiftDao
+import com.naveen.schedittestapp.data.dao.ShiftTemplateDao
 import com.naveen.schedittestapp.data.model.Employee
 import com.naveen.schedittestapp.data.model.Shift
 import com.naveen.schedittestapp.data.model.ShiftAssignment
+import com.naveen.schedittestapp.data.model.ShiftTemplate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -22,7 +24,8 @@ sealed class AssignmentResult {
 class ScheduleRepository(
     private val employeeDao: EmployeeDao,
     private val shiftDao: ShiftDao,
-    private val shiftAssignmentDao: ShiftAssignmentDao
+    private val shiftAssignmentDao: ShiftAssignmentDao,
+    private val shiftTemplateDao: ShiftTemplateDao
 ) {
     // Employee operations
     fun getAllEmployees(): Flow<List<Employee>> = employeeDao.getAllEmployees()
@@ -187,6 +190,60 @@ class ScheduleRepository(
         val shift = shiftDao.getShiftById(shiftId)
         val assignments = shiftAssignmentDao.getAssignmentsByShift(shiftId).first()
         return Pair(shift, assignments.size)
+    }
+    
+    // Shift Template operations
+    fun getAllTemplates(): Flow<List<ShiftTemplate>> = shiftTemplateDao.getAllTemplates()
+    
+    suspend fun getTemplateById(id: Long): ShiftTemplate? = shiftTemplateDao.getTemplateById(id)
+    
+    suspend fun insertTemplate(template: ShiftTemplate): Long = shiftTemplateDao.insertTemplate(template)
+    
+    suspend fun updateTemplate(template: ShiftTemplate) = shiftTemplateDao.updateTemplate(template)
+    
+    suspend fun deleteTemplate(template: ShiftTemplate) = shiftTemplateDao.deleteTemplate(template)
+    
+    // Generate shifts from template for a date range
+    suspend fun generateShiftsFromTemplate(
+        templateId: Long,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): List<Long> {
+        val template = shiftTemplateDao.getTemplateById(templateId)
+            ?: return emptyList()
+        
+        val generatedShiftIds = mutableListOf<Long>()
+        var currentDate = startDate
+        
+        while (!currentDate.isAfter(endDate)) {
+            // Check if template applies to this day
+            val shouldCreate = template.dayOfWeek?.let { dayOfWeek ->
+                currentDate.dayOfWeek.value == dayOfWeek
+            } ?: true // If dayOfWeek is null, create for all days
+            
+            if (shouldCreate) {
+                val startDateTime = currentDate.atTime(template.startHour, template.startMinute)
+                val endDateTime = startDateTime.plusHours(template.durationHours.toLong())
+                
+                val startTime = startDateTime.atZone(ZoneId.systemDefault()).toEpochSecond()
+                val endTime = endDateTime.atZone(ZoneId.systemDefault()).toEpochSecond()
+                
+                val shift = Shift(
+                    location = template.location,
+                    startTime = startTime,
+                    endTime = endTime,
+                    requiredSkills = template.requiredSkills,
+                    minStaffing = template.minStaffing
+                )
+                
+                val shiftId = shiftDao.insertShift(shift)
+                generatedShiftIds.add(shiftId)
+            }
+            
+            currentDate = currentDate.plusDays(1)
+        }
+        
+        return generatedShiftIds
     }
 }
 
