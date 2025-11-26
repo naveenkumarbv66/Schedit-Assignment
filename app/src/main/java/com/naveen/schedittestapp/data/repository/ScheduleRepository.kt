@@ -36,6 +36,18 @@ class ScheduleRepository(
     
     suspend fun insertEmployee(employee: Employee): Long = employeeDao.insertEmployee(employee)
     
+    suspend fun updateEmployee(employee: Employee) {
+        employeeDao.updateEmployee(employee)
+    }
+    
+    suspend fun deleteEmployee(employeeId: Long) {
+        val employee = employeeDao.getEmployeeById(employeeId)
+        if (employee != null) {
+            // Delete employee - assignments will be automatically deleted due to CASCADE
+            employeeDao.deleteEmployee(employee)
+        }
+    }
+    
     // Shift operations
     fun getAllShifts(): Flow<List<Shift>> = shiftDao.getAllShifts()
     

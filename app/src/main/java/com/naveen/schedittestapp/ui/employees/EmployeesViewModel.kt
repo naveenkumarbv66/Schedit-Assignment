@@ -78,5 +78,47 @@ class EmployeesViewModel @Inject constructor(
             _uiState.value = state.copy(filteredEmployees = state.employees)
         }
     }
+
+    fun addEmployee(employee: Employee) {
+        viewModelScope.launch {
+            try {
+                repository.insertEmployee(employee)
+                // Flow collection will automatically update
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Failed to add employee"
+                )
+            }
+        }
+    }
+
+    fun updateEmployee(employee: Employee) {
+        viewModelScope.launch {
+            try {
+                repository.updateEmployee(employee)
+                // Flow collection will automatically update
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Failed to update employee"
+                )
+            }
+        }
+    }
+
+    suspend fun deleteEmployee(employeeId: Long): Boolean {
+        return try {
+            repository.deleteEmployee(employeeId)
+            true
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                error = e.message ?: "Failed to delete employee"
+            )
+            false
+        }
+    }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
 }
 

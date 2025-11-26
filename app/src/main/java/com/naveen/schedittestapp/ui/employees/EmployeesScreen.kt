@@ -23,12 +23,16 @@ fun EmployeesScreen(
     viewModel: EmployeesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddEmployeeDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Employees") },
                 actions = {
+                    IconButton(onClick = { showAddEmployeeDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Employee")
+                    }
                     IconButton(onClick = onNavigateToSchedule) {
                         Icon(Icons.Default.CalendarToday, contentDescription = "Schedule")
                     }
@@ -116,6 +120,18 @@ fun EmployeesScreen(
                 }
             }
         }
+    }
+
+    // Add Employee Dialog
+    if (showAddEmployeeDialog) {
+        CreateEditEmployeeDialog(
+            employee = null,
+            onDismiss = { showAddEmployeeDialog = false },
+            onSave = { employee ->
+                viewModel.addEmployee(employee)
+                showAddEmployeeDialog = false
+            }
+        )
     }
 }
 

@@ -14,10 +14,14 @@ A native Android application for workforce scheduling that allows managers to vi
    - Delete shifts with automatic cascade deletion of all assignments
    - Data integrity: All related employee assignments are automatically removed
 
-2. **Employee Management**
+2. **Employee Management** ✨
    - Browse employee roster with search functionality
+   - Create new employees with skills, employment type, and hour limits
+   - Edit existing employee information (name, skills, hours, employment type)
+   - Delete employees with automatic cascade deletion of all assignments
    - View employee profiles with skills, availability, and employment type
    - See employee schedules and assigned shifts
+   - Data integrity: All related shift assignments are automatically removed when employee is deleted
 
 3. **Shift Assignment**
    - Assign employees to shifts with real-time validation
@@ -401,6 +405,111 @@ The edit feature includes comprehensive validation:
 - **Skill Requirements**: Update required skills as job requirements evolve
 - **Staffing Changes**: Adjust minimum staffing levels based on business needs
 - **Corrections**: Fix mistakes in shift details without deleting and recreating
+
+## 👥 Employee Management Feature
+
+### Overview
+
+The app provides comprehensive employee management capabilities, allowing you to create, edit, and delete employees with full data integrity. When an employee is deleted, all related shift assignments are automatically removed to maintain database consistency.
+
+### How to Create an Employee
+
+1. **Navigate to Employees Screen**
+   - Open the Employees screen from the main navigation
+   - Tap the "+" (Add) icon in the top-right corner
+
+2. **Fill in Employee Details**
+   - **Name**: Employee's full name (required)
+   - **Skills**: Comma-separated list of skills (e.g., "Cashier, Supervisor, Barista")
+   - **Employment Type**: Select Full-time or Part-time from dropdown
+   - **Max Daily Hours**: Maximum hours per day (default: 8)
+   - **Max Weekly Hours**: Maximum hours per week (default: 40)
+
+3. **Save Employee**
+   - Tap "Save" to create the employee
+   - The employee will appear in the employees list immediately
+
+### How to Edit an Employee
+
+1. **Navigate to Employee Details**
+   - Open the Employees screen
+   - Tap on any employee card to view details
+
+2. **Open Edit Dialog**
+   - Tap the "Edit" icon in the top-right corner, OR
+   - Tap the "Edit Employee" button in the employee detail screen
+
+3. **Modify Employee Information**
+   - Update any field: name, skills, employment type, or hour limits
+   - All fields are pre-filled with current values
+
+4. **Save Changes**
+   - Review all changes
+   - Tap "Save" to apply updates
+   - Changes are reflected immediately
+
+### How to Delete an Employee
+
+1. **Navigate to Employee Details**
+   - Open the Employees screen
+   - Tap on any employee card to view details
+
+2. **Delete the Employee**
+   - Tap the "Delete" button (red button)
+   - A confirmation dialog will appear showing:
+     - Employee name
+     - Number of shift assignments that will be removed
+     - Warning that the action cannot be undone
+
+3. **Confirm Deletion**
+   - Review the information in the dialog
+   - Tap "Delete" to confirm or "Cancel" to abort
+   - Upon confirmation, the employee and all assignments are permanently deleted
+   - You'll be automatically navigated back to the employees list
+
+### Data Integrity & Cascade Deletion
+
+The app ensures complete data integrity when managing employees:
+
+- **Automatic Assignment Cleanup**: All `ShiftAssignment` records for the deleted employee are automatically removed
+- **No Orphaned Data**: Database foreign key constraints with `CASCADE` ensure no orphaned assignment records remain
+- **Shift Safety**: Shift records are never deleted - only the assignment relationship is removed
+- **Other Employees Unaffected**: Deleting one employee does not affect other employees or their assignments
+
+### Employee Fields
+
+- **Name**: Full name of the employee (required, unique identifier)
+- **Skills**: List of skills the employee possesses (used for shift assignment validation)
+- **Employment Type**: 
+  - Full-time: Typically 40 hours/week
+  - Part-time: Flexible hours
+- **Max Daily Hours**: Maximum hours the employee can work in a single day
+- **Max Weekly Hours**: Maximum hours the employee can work in a week
+
+### Validation & Business Rules
+
+- **Name Required**: Employee name cannot be empty
+- **Hours Validation**: Daily and weekly hours must be greater than 0
+- **Skill Matching**: When assigning to shifts, employee must have all required skills
+- **Hour Limits**: System enforces daily and weekly hour limits when assigning shifts
+- **No Double-Booking**: Employee cannot be assigned to overlapping shifts
+
+### Technical Implementation
+
+- **Repository Layer**: `insertEmployee()`, `updateEmployee()`, `deleteEmployee()` methods
+- **Database**: Room's `@Update` and `@Delete` annotations with CASCADE foreign keys
+- **UI Layer**: Form validation prevents invalid data entry
+- **State Management**: ViewModel automatically reloads employee list after operations
+- **Cascade Deletion**: Foreign key constraint ensures automatic cleanup of assignments
+
+### Use Cases
+
+- **Onboarding**: Add new employees to the system
+- **Skill Updates**: Update employee skills as they gain new qualifications
+- **Employment Changes**: Change employment type (full-time to part-time or vice versa)
+- **Hour Adjustments**: Modify hour limits based on employee availability or contract changes
+- **Employee Offboarding**: Remove employees who are no longer with the organization
+- **Data Corrections**: Fix mistakes in employee information without deleting and recreating
 
 ## 📋 Shift Templates Feature
 

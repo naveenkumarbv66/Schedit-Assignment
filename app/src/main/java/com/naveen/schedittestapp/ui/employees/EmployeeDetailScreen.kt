@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -25,6 +28,8 @@ fun EmployeeDetailScreen(
     viewModel: EmployeeDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(employeeId) {
         viewModel.loadEmployeeDetails(employeeId)
@@ -37,6 +42,13 @@ fun EmployeeDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (uiState.employee != null) {
+                        IconButton(onClick = { showEditDialog = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Employee")
+                        }
                     }
                 }
             )
@@ -88,6 +100,36 @@ fun EmployeeDetailScreen(
                     }
                     
                     item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { showEditDialog = true },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary
+                                )
+                            ) {
+                                Icon(Icons.Default.Edit, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Edit Employee")
+                            }
+                            Button(
+                                onClick = { showDeleteDialog = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                ),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Delete, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Delete")
+                            }
+                        }
+                    }
+                    
+                    item {
                         Text(
                             text = "Assigned Shifts (${uiState.shifts.size})",
                             style = MaterialTheme.typography.titleMedium,
@@ -114,6 +156,79 @@ fun EmployeeDetailScreen(
                 }
             }
         }
+    }
+
+    // Edit Employee Dialog
+    if (showEditDialog && uiState.employee != null) {
+        CreateEditEmployeeDialog(
+            employee = uiState.employee!!,
+            onDismiss = { showEditDialog = false },
+            onSave = { updatedEmployee ->
+                CoroutineScope(Dispatchers.Main).launch {
+                    val success = viewModel.updateEmployee(updatedEmployee)
+                    if (success) {
+                        showEditDialog = false
+                    }
+                }
+            }
+        )
+    }
+
+    // Delete Employee Dialog
+    if (showDeleteDialog && uiState.employee != null) {
+        val currentEmployee = uiState.employee!!
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Employee") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Are you sure you want to delete this employee?")
+                    Text(
+                        text = currentEmployee.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (uiState.shifts.isNotEmpty()) {
+                        Text(
+                            text = "⚠️ This will also remove all ${uiState.shifts.size} shift assignment(s) for this employee.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Text(
+                        text = "This action cannot be undone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            val deleted = viewModel.deleteEmployee(employeeId)
+                            if (deleted) {
+                                showDeleteDialog = false
+                                onNavigateBack()
+                            } else {
+                                showDeleteDialog = false
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

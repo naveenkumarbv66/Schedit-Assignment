@@ -54,5 +54,30 @@ class EmployeeDetailViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun updateEmployee(employee: Employee): Boolean {
+        return try {
+            repository.updateEmployee(employee)
+            loadEmployeeDetails(employee.id)
+            true
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                error = e.message ?: "Failed to update employee"
+            )
+            false
+        }
+    }
+
+    suspend fun deleteEmployee(employeeId: Long): Boolean {
+        return try {
+            repository.deleteEmployee(employeeId)
+            true
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                error = e.message ?: "Failed to delete employee"
+            )
+            false
+        }
+    }
 }
 
