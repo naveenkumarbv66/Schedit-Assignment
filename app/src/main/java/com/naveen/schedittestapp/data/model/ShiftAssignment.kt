@@ -1,0 +1,32 @@
+package com.naveen.schedittestapp.data.model
+
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+@Entity(
+    tableName = "shift_assignments",
+    foreignKeys = [
+        ForeignKey(
+            entity = Employee::class,
+            parentColumns = ["id"],
+            childColumns = ["employeeId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Shift::class,
+            parentColumns = ["id"],
+            childColumns = ["shiftId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("employeeId"), Index("shiftId")]
+)
+data class ShiftAssignment(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val employeeId: Long,
+    val shiftId: Long
+)
+
