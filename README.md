@@ -10,6 +10,8 @@ A native Android application for workforce scheduling that allows managers to vi
    - Display list of available shifts with details (time, location, required skills, staffing)
    - Filter shifts by date and location
    - View detailed shift information with assigned employees
+   - Delete shifts with automatic cascade deletion of all assignments
+   - Data integrity: All related employee assignments are automatically removed
 
 2. **Employee Management**
    - Browse employee roster with search functionality
@@ -80,8 +82,9 @@ The app follows the **MVVM architecture pattern** with clear separation of conce
 - **UI Layer**: Jetpack Compose screens with Material Design 3
 - **ViewModel**: State management using StateFlow
 - **Repository**: Single source of truth with business logic
-- **Data Layer**: Room database for local persistence
+- **Data Layer**: Room database for local persistence with cascade deletion support
 - **Dependency Injection**: Hilt for DI
+- **Data Integrity**: Foreign key constraints with CASCADE ensure automatic cleanup
 
 ## 🛠️ Technology Stack
 
@@ -287,6 +290,54 @@ The app enforces the following scheduling rules:
    - Implicitly checked through overlap detection
    - Can be extended for explicit availability windows
 
+## 🗑️ Shift Deletion Feature
+
+### Overview
+
+The app supports safe deletion of shifts with automatic cleanup of all related data. When a shift is deleted, all employee assignments for that shift are automatically removed to maintain data integrity.
+
+### How to Delete a Shift
+
+1. **Navigate to Shift Details**
+   - Open the Shifts screen
+   - Tap on any shift card to view details
+
+2. **Delete the Shift**
+   - Tap the "Delete Shift" button (red button at the bottom)
+   - A confirmation dialog will appear showing:
+     - Shift details (location and time)
+     - Number of employee assignments that will be removed
+     - Warning that the action cannot be undone
+
+3. **Confirm Deletion**
+   - Review the information in the dialog
+   - Tap "Delete" to confirm or "Cancel" to abort
+   - Upon confirmation, the shift and all assignments are permanently deleted
+   - You'll be automatically navigated back to the shifts list
+
+### Data Integrity & Cascade Deletion
+
+The app ensures complete data integrity when deleting shifts:
+
+- **Automatic Assignment Cleanup**: All `ShiftAssignment` records for the deleted shift are automatically removed
+- **No Orphaned Data**: Database foreign key constraints with `CASCADE` ensure no orphaned assignment records remain
+- **Employee Safety**: Employee records are never deleted - only the assignment relationship is removed
+- **Other Shifts Unaffected**: Deleting one shift does not affect other shifts or their assignments
+
+### Technical Implementation
+
+- **Database Level**: Foreign key constraint with `onDelete = ForeignKey.CASCADE` ensures automatic cleanup
+- **Repository Layer**: `deleteShift()` method handles the deletion process
+- **UI Layer**: Confirmation dialog prevents accidental deletions
+- **User Feedback**: Clear warnings and error messages guide the user
+
+### Use Cases
+
+- **Cleanup Generated Shifts**: Delete shifts created from templates that are no longer needed
+- **Correct Mistakes**: Remove incorrectly created shifts
+- **Schedule Adjustments**: Delete shifts when schedule changes occur
+- **Bulk Operations**: Delete multiple shifts individually as needed
+
 ## 📋 Shift Templates Feature
 
 ### Overview
@@ -362,6 +413,9 @@ The app includes sample data that is automatically loaded on first launch:
 - **Empty States**: Clear messaging when no data is available
 - **Navigation**: Intuitive navigation between screens
 - **Search & Filter**: Easy-to-use search and filter functionality
+- **Confirmation Dialogs**: Safe deletion with clear warnings and impact information
+- **Cascade Deletion Feedback**: Shows number of assignments that will be removed before deletion
+- **Data Safety**: All destructive actions require explicit confirmation
 
 ## 🔄 Known Limitations & Future Improvements
 

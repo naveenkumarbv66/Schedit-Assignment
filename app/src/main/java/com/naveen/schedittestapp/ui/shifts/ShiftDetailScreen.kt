@@ -15,8 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.naveen.schedittestapp.data.model.Employee
 import com.naveen.schedittestapp.data.model.Shift
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -31,6 +35,7 @@ fun ShiftDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAssignDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(shiftId) {
         viewModel.loadShiftDetails(shiftId)
@@ -115,6 +120,17 @@ fun ShiftDetailScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Text("Assign Employee")
                             }
+                            Button(
+                                onClick = { showDeleteDialog = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                ),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Delete, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Delete Shift")
+                            }
                         }
                     }
                     
@@ -196,6 +212,65 @@ fun ShiftDetailScreen(
                 }
             }
         }
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        val currentShift = uiState.shift
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Shift") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Are you sure you want to delete this shift?")
+                    if (currentShift != null) {
+                        Text(
+                            text = "${currentShift.location} - ${formatTime(currentShift.startTime)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (uiState.assignedEmployees.isNotEmpty()) {
+                        Text(
+                            text = "⚠️ This will also remove all ${uiState.assignedEmployees.size} employee assignment(s) for this shift.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Text(
+                        text = "This action cannot be undone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            val deleted = viewModel.deleteShift(shiftId)
+                            if (deleted) {
+                                showDeleteDialog = false
+                                onNavigateBack()
+                            } else {
+                                showDeleteDialog = false
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

@@ -99,5 +99,18 @@ class ShiftsViewModel @Inject constructor(
         )
         applyFilters()
     }
+
+    fun deleteShift(shiftId: Long) {
+        viewModelScope.launch {
+            try {
+                repository.deleteShift(shiftId)
+                // Shifts list will automatically update via Flow
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message ?: "Failed to delete shift"
+                )
+            }
+        }
+    }
 }
 

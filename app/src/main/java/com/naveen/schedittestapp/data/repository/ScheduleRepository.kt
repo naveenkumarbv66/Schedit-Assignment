@@ -49,6 +49,14 @@ class ScheduleRepository(
     
     suspend fun insertShift(shift: Shift): Long = shiftDao.insertShift(shift)
     
+    suspend fun deleteShift(shiftId: Long) {
+        val shift = shiftDao.getShiftById(shiftId)
+        if (shift != null) {
+            // Delete shift - assignments will be automatically deleted due to CASCADE
+            shiftDao.deleteShift(shift)
+        }
+    }
+    
     // Assignment operations
     fun getAllAssignments(): Flow<List<ShiftAssignment>> = shiftAssignmentDao.getAllAssignments()
     

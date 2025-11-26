@@ -107,5 +107,17 @@ class ShiftDetailViewModel @Inject constructor(
     fun clearAssignmentResult() {
         _uiState.value = _uiState.value.copy(assignmentResult = null)
     }
+
+    suspend fun deleteShift(shiftId: Long): Boolean {
+        return try {
+            repository.deleteShift(shiftId)
+            true
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                error = e.message ?: "Failed to delete shift"
+            )
+            false
+        }
+    }
 }
 
