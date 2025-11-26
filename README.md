@@ -524,5 +524,713 @@ For issues or questions, please contact the development team.
 
 ---
 
+## 🔧 Troubleshooting & Common Issues
+
+This section documents errors encountered during development and their solutions. This can help developers understand common pitfalls and how to resolve them.
+
+### 1. CoroutineScope Type Mismatch Error
+
+**Error:**
+```
+e: file:///.../ScheduleApplication.kt:17:44 Argument type mismatch: 
+actual type is 'com.naveen.schedittestapp.ScheduleApplication', 
+but 'kotlinx.coroutines.CoroutineScope' was expected.
+```
+
+**Cause:**
+The `InitialDataProvider.initializeData()` function expected a `CoroutineScope`, but the `Application` instance (`this`) was passed instead.
+
+**Solution:**
+Created an explicit `CoroutineScope` within `ScheduleApplication` using `SupervisorJob()` and `Dispatchers.Default`:
+
+```kotlin
+class ScheduleApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    
+    override fun onCreate() {
+        super.onCreate()
+        InitialDataProvider.initializeData(applicationScope, ...)
+    }
+}
+```
+
+**Key Takeaway:** Always pass the correct type to functions. Use `SupervisorJob()` for application-level coroutine scopes to prevent cancellation of child coroutines from affecting the parent.
+
+---
+
+### 2. Smart Cast Error with Delegated Properties
+
+**Error:**
+```
+e: file:///.../EmployeeDetailScreen.kt:68:36 Smart cast to 'kotlin.String' is impossible, 
+because 'error' is a delegated property.
+```
+
+**Cause:**
+Kotlin cannot smart cast delegated properties (like `uiState.error` from `StateFlow`) after a null check because the property access might return a different value on subsequent reads.
+
+**Solution:**
+Store the delegated property value in a local, non-delegated variable after the null check:
+
+```kotlin
+// ❌ Wrong - doesn't work with delegated properties
+if (uiState.error != null) {
+    Text(uiState.error) // Error: smart cast impossible
+}
+
+// ✅ Correct - store in local variable
+val errorMessage = uiState.error
+if (errorMessage != null) {
+    Text(errorMessage) // Works!
+}
+```
+
+**Affected Files:**
+- `EmployeeDetailScreen.kt`
+- `ShiftDetailScreen.kt`
+- `EmployeesScreen.kt`
+- `ShiftsScreen.kt`
+- `ScheduleScreen.kt`
+
+**Key Takeaway:** Always extract delegated property values to local variables before using them in conditional blocks.
+
+---
+
+### 3. Private Function Access Error
+
+**Error:**
+```
+e: file:///.../ShiftsScreen.kt:114:58 Cannot access 'fun loadShifts(): Unit': 
+it is private in 'com/naveen/schedittestapp/ui/shifts/ShiftsViewModel'.
+```
+
+**Cause:**
+The `loadShifts()` function in `ShiftsViewModel` was marked as `private`, but it was being called from the UI (specifically, the "Retry" button).
+
+**Solution:**
+Changed the function visibility from `private` to `public` (or removed the visibility modifier):
+
+```kotlin
+// ❌ Wrong
+private fun loadShifts() { ... }
+
+// ✅ Correct
+fun loadShifts() { ... }
+```
+
+**Key Takeaway:** Functions that need to be called from UI should be public. Only internal helper functions should be private.
+
+---
+
+### 4. NoSuchMethodError on Older Android Versions
+
+**Error:**
+```
+FATAL EXCEPTION: main java.lang.NoSuchMethodError: 
+No static method ofInstant(Ljava/time/Instant;Ljava/time/ZoneId;)Ljava/time/LocalDate; 
+in class Ljava/time/LocalDate;
+```
+
+**Cause:**
+`LocalDate.ofInstant()` is not available on Android API level 25 (minSdk). This method was added in API level 26.
+
+**Solution:**
+Two-part fix:
+
+1. **Enable Java 8+ API Desugaring:**
+   In `app/build.gradle.kts`:
+   ```kotlin
+   compileOptions {
+       isCoreLibraryDesugaringEnabled = true
+       sourceCompatibility = JavaVersion.VERSION_1_8
+       targetCompatibility = JavaVersion.VERSION_1_8
+   }
+   
+   dependencies {
+       coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+   }
+   ```
+
+2. **Use Alternative Method:**
+   Created a helper function that works on all API levels:
+   ```kotlin
+   fun epochSecondsToLocalDate(epochSeconds: Long): LocalDate {
+       return Instant.ofEpochSecond(epochSeconds)
+           .atZone(ZoneId.systemDefault())
+           .toLocalDate()
+   }
+   ```
+
+**Key Takeaway:** Always check API level compatibility when using newer Java/Kotlin APIs. Use desugaring for `java.time` APIs on older Android versions.
+
+---
+
+### 5. Click Events Not Working in Dialogs
+
+**Error:**
+User reported: "on clicking on employee (Jane Doe) in the Assign employee to shift screen, nothing is happening"
+
+**Cause:**
+The `Card`'s `onClick` parameter within an `AlertDialog` was not reliably registering click events. This is a known issue with nested clickable components in Compose dialogs.
+
+**Solution:**
+Replaced `Card(onClick = ...)` with `Surface(modifier = Modifier.clickable { ... })`:
+
+```kotlin
+// ❌ Wrong - unreliable in dialogs
+Card(onClick = { onEmployeeSelected(employee) }) {
+    // content
+}
+
+// ✅ Correct - reliable click handling
+Surface(
+    modifier = Modifier.clickable { onEmployeeSelected(employee) },
+    color = MaterialTheme.colorScheme.surface
+) {
+    // content
+}
+```
+
+**Key Takeaway:** Use `Modifier.clickable()` on `Surface` instead of `Card`'s `onClick` parameter when inside dialogs for more reliable event handling.
+
+---
+
+### 6. Infinite Loading - Flow Collection Blocking
+
+**Error:**
+User reported: "assign employee to shift screen, where both Employees and Shifts column nothing is displaying and its showing only loading circular animation"
+
+**Cause:**
+The `AssignmentViewModel.loadData()` function used two sequential `collect` calls:
+```kotlin
+repository.getAllEmployees().collect { employees -> ... }
+repository.getAllShifts().collect { shifts -> ... }
+```
+Since Room's `Flow`s are infinite streams, the first `collect` never completes, preventing the second one from ever running.
+
+**Solution:**
+Used `combine()` to collect both flows concurrently:
+
+```kotlin
+// ❌ Wrong - blocks forever
+viewModelScope.launch {
+    repository.getAllEmployees().collect { employees ->
+        _uiState.value = _uiState.value.copy(employees = employees)
+    }
+    repository.getAllShifts().collect { shifts -> // Never reached!
+        _uiState.value = _uiState.value.copy(shifts = shifts)
+    }
+}
+
+// ✅ Correct - collects both concurrently
+viewModelScope.launch {
+    combine(
+        repository.getAllEmployees(),
+        repository.getAllShifts()
+    ) { employees, shifts ->
+        _uiState.value = _uiState.value.copy(
+            employees = employees,
+            shifts = shifts,
+            isLoading = false
+        )
+    }.collect()
+}
+```
+
+**Key Takeaway:** Use `combine()` or `zip()` when you need to collect multiple `Flow`s concurrently. Sequential `collect` calls on infinite flows will block.
+
+---
+
+### 7. Dropdown Menu Not Appearing
+
+**Error:**
+User reported: "In the Schedule screen, top right icon is not working."
+
+**Cause:**
+The top-right icon was setting a boolean state (`showViewModeMenu = true`), but no UI element was reacting to this state to display a menu.
+
+**Solution:**
+Implemented a `DropdownMenu` that appears when the state is true:
+
+```kotlin
+// ❌ Wrong - only sets state, no UI response
+IconButton(onClick = { showViewModeMenu = true }) {
+    Icon(Icons.Default.ViewModule, null)
+}
+
+// ✅ Correct - shows dropdown menu
+IconButton(onClick = { showViewModeMenu = true }) {
+    Icon(Icons.Default.ViewModule, null)
+}
+
+DropdownMenu(
+    expanded = showViewModeMenu,
+    onDismissRequest = { showViewModeMenu = false }
+) {
+    // Menu items
+}
+```
+
+**Key Takeaway:** Always pair state changes with corresponding UI elements that react to those states.
+
+---
+
+### 8. Missing Import Errors
+
+**Errors:**
+- `Unresolved reference 'Alignment'` in `CreateTemplateDialog.kt`
+- `Unresolved reference 'FontWeight'` in `GenerateShiftsDialog.kt`
+
+**Cause:**
+Missing import statements for commonly used Compose components.
+
+**Solution:**
+Added the missing imports:
+
+```kotlin
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+```
+
+**Key Takeaway:** Always check imports when encountering "Unresolved reference" errors. Android Studio's auto-import (Alt+Enter) can help, but sometimes manual imports are needed.
+
+---
+
+### 9. Git Authentication Issues
+
+#### Issue 9.1: Permission Denied (403 Error)
+
+**Error:**
+```
+remote: Permission to naveenkumarbv66/Schedit-Assignment.git denied to naveen-kumar-bv. 
+fatal: unable to access 'https://github.com/naveenkumarbv66/Schedit-Assignment.git/': 
+The requested URL returned error: 403
+```
+
+**Cause:**
+Git was using cached credentials for a different GitHub account (`naveen-kumar-bv` instead of `naveenkumarbv66`), or HTTPS authentication was not properly configured.
+
+**Solution Steps:**
+
+1. **Check current remote URL:**
+   ```bash
+   git remote -v
+   ```
+
+2. **Check current Git user configuration:**
+   ```bash
+   git config user.name
+   git config user.email
+   ```
+
+3. **Switch remote to HTTPS with username in URL:**
+   ```bash
+   git remote set-url origin https://naveenkumarbv66@github.com/naveenkumarbv66/Schedit-Assignment.git
+   ```
+
+4. **Clear cached credentials:**
+   ```bash
+   # For credential helper cache
+   git credential-cache exit
+   
+   # Or reject specific URL
+   git credential reject https://github.com
+   
+   # For macOS Keychain (if using)
+   git credential-osxkeychain erase
+   host=github.com
+   protocol=https
+   # (Press Enter twice)
+   ```
+
+5. **Verify remote URL:**
+   ```bash
+   git remote -v
+   ```
+
+6. **Create Personal Access Token (PAT):**
+   - Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Click "Generate new token (classic)"
+   - Select scopes: `repo` (full control of private repositories)
+   - Copy the token (you won't see it again!)
+
+7. **Push using PAT:**
+   ```bash
+   git push -u origin main
+   # When prompted:
+   # Username: naveenkumarbv66
+   # Password: <paste your PAT here>
+   ```
+
+**Alternative Solution (SSH):**
+
+1. **Check for existing SSH keys:**
+   ```bash
+   ls -al ~/.ssh
+   ```
+
+2. **Generate SSH key (if needed):**
+   ```bash
+   ssh-keygen -t ed25519 -C "your_email@example.com"
+   # Press Enter to accept default location
+   # Enter passphrase (optional but recommended)
+   ```
+
+3. **Add SSH key to ssh-agent:**
+   ```bash
+   eval "$(ssh-agent -s)"
+   ssh-add ~/.ssh/id_ed25519
+   ```
+
+4. **Copy public key to clipboard:**
+   ```bash
+   # macOS
+   pbcopy < ~/.ssh/id_ed25519.pub
+   
+   # Linux
+   cat ~/.ssh/id_ed25519.pub | xclip -selection clipboard
+   ```
+
+5. **Add SSH key to GitHub:**
+   - Go to GitHub → Settings → SSH and GPG keys
+   - Click "New SSH key"
+   - Paste your public key
+   - Click "Add SSH key"
+
+6. **Switch remote to SSH:**
+   ```bash
+   git remote set-url origin git@github.com:naveenkumarbv66/Schedit-Assignment.git
+   ```
+
+7. **Test SSH connection:**
+   ```bash
+   ssh -T git@github.com
+   # Should see: "Hi naveenkumarbv66! You've successfully authenticated..."
+   ```
+
+8. **Push using SSH:**
+   ```bash
+   git push -u origin main
+   ```
+
+**Key Takeaway:** 
+- For HTTPS, use Personal Access Tokens instead of passwords (GitHub deprecated password authentication in 2021)
+- For SSH, ensure SSH keys are properly configured and added to GitHub
+- Always verify remote URL with `git remote -v` before pushing
+
+---
+
+#### Issue 9.2: Files Not Tracked - Only README.md Visible
+
+**Error:**
+User reported: "the code or project is not pushed. Only README.md file visible in github"
+
+**Cause:**
+Project files were not added to Git staging area before commit. Only `README.md` was tracked and committed.
+
+**Solution Steps:**
+
+1. **Check Git status:**
+   ```bash
+   git status
+   # Shows untracked files
+   ```
+
+2. **Check what files are tracked:**
+   ```bash
+   git ls-files
+   # Only shows README.md
+   ```
+
+3. **Add all files to staging:**
+   ```bash
+   git add .
+   # Or add specific files:
+   git add app/
+   git add gradle/
+   git add build.gradle.kts
+   ```
+
+4. **Verify files are staged:**
+   ```bash
+   git status
+   # Should show all files as "Changes to be committed"
+   ```
+
+5. **Commit all files:**
+   ```bash
+   git commit -m "Add complete Workforce Scheduling Android App"
+   ```
+
+6. **Check commit includes all files:**
+   ```bash
+   git show --name-only --oneline HEAD
+   # Lists all files in the commit
+   ```
+
+7. **Push to remote:**
+   ```bash
+   git push -u origin main
+   ```
+
+8. **Verify on GitHub:**
+   - Check repository on GitHub
+   - All project files should now be visible
+
+**Key Takeaway:** Always check `git status` before committing to ensure all intended files are staged. Use `git add .` to add all untracked files.
+
+---
+
+#### Issue 9.3: Remote Not Configured
+
+**Error:**
+```
+fatal: No configured push destination.
+Either specify the URL on the command line or configure a remote repository using
+git remote add <name> <url>
+```
+
+**Cause:**
+Local repository doesn't have a remote configured, or remote was removed.
+
+**Solution:**
+
+1. **Check if remote exists:**
+   ```bash
+   git remote -v
+   # Shows nothing if no remote configured
+   ```
+
+2. **Add remote repository:**
+   ```bash
+   # For HTTPS
+   git remote add origin https://github.com/naveenkumarbv66/Schedit-Assignment.git
+   
+   # For SSH
+   git remote add origin git@github.com:naveenkumarbv66/Schedit-Assignment.git
+   ```
+
+3. **Verify remote added:**
+   ```bash
+   git remote -v
+   ```
+
+4. **Push to remote:**
+   ```bash
+   git push -u origin main
+   ```
+
+**Key Takeaway:** Always configure remote before pushing. Use `-u` flag on first push to set upstream tracking.
+
+---
+
+#### Issue 9.4: Branch Name Mismatch
+
+**Error:**
+```
+error: src refspec main does not match any
+error: failed to push some refs to 'origin'
+```
+
+**Cause:**
+Local branch might be named `master` but trying to push to `main`, or branch doesn't exist.
+
+**Solution:**
+
+1. **Check current branch:**
+   ```bash
+   git branch
+   # Shows current branch with *
+   ```
+
+2. **Check all branches (local and remote):**
+   ```bash
+   git branch -a
+   ```
+
+3. **Rename branch if needed:**
+   ```bash
+   # If on master, rename to main
+   git branch -m master main
+   ```
+
+4. **Or push to correct branch:**
+   ```bash
+   # If branch is master
+   git push -u origin master
+   ```
+
+5. **Set default branch on GitHub:**
+   - Go to repository Settings → Branches
+   - Change default branch from `master` to `main` (if needed)
+
+**Key Takeaway:** Ensure local and remote branch names match. Modern Git defaults to `main` instead of `master`.
+
+---
+
+#### Issue 9.5: Large File or .gitignore Issues
+
+**Error:**
+```
+remote: error: File app/build/... is 150.00 MB; this exceeds GitHub's file size limit of 100.00 MB
+```
+
+**Cause:**
+Build artifacts or large files are being committed.
+
+**Solution:**
+
+1. **Check .gitignore file exists:**
+   ```bash
+   cat .gitignore
+   ```
+
+2. **Add Android build directories to .gitignore:**
+   ```bash
+   # If .gitignore doesn't exist, create it
+   cat > .gitignore << EOF
+   # Built application files
+   *.apk
+   *.ap_
+   *.aab
+   
+   # Files for the ART/Dalvik VM
+   *.dex
+   
+   # Java class files
+   *.class
+   
+   # Generated files
+   bin/
+   gen/
+   out/
+   release/
+   
+   # Gradle files
+   .gradle/
+   build/
+   
+   # Local configuration file (sdk path, etc)
+   local.properties
+   
+   # Proguard folder generated by Eclipse
+   proguard/
+   
+   # Log Files
+   *.log
+   
+   # Android Studio Navigation editor temp files
+   .navigation/
+   
+   # Android Studio captures folder
+   captures/
+   
+   # IntelliJ
+   *.iml
+   .idea/workspace.xml
+   .idea/tasks.xml
+   .idea/gradle.xml
+   .idea/assetWizardSettings.xml
+   .idea/dictionaries
+   .idea/libraries
+   .idea/jarRepositories.xml
+   .idea/caches
+   .idea/modules.xml
+   .idea/.name
+   .idea/compiler.xml
+   .idea/misc.xml
+   .idea/vcs.xml
+   .idea/shelf
+   
+   # Keystore files
+   *.jks
+   *.keystore
+   
+   # External native build folder generated in Android Studio 2.2 and later
+   .externalNativeBuild
+   .cxx/
+   
+   # Google Services (e.g. APIs or Firebase)
+   google-services.json
+   
+   # Freeline
+   freeline.py
+   freeline/
+   freeline_project_description.json
+   
+   # fastlane
+   fastlane/report.xml
+   fastlane/Preview.html
+   fastlane/screenshots
+   fastlane/test_output
+   fastlane/readme.md
+   
+   # Version control
+   vcs.xml
+   
+   # lint
+   lint/intermediates/
+   lint/generated/
+   lint/outputs/
+   lint/tmp/
+   lint-results*.xml
+   EOF
+   ```
+
+3. **Remove already tracked files:**
+   ```bash
+   # Remove from Git but keep locally
+   git rm -r --cached app/build/
+   git rm -r --cached .gradle/
+   ```
+
+4. **Commit .gitignore:**
+   ```bash
+   git add .gitignore
+   git commit -m "Add .gitignore to exclude build files"
+   ```
+
+5. **Push changes:**
+   ```bash
+   git push origin main
+   ```
+
+**Key Takeaway:** Always use `.gitignore` to exclude build artifacts, IDE files, and sensitive data. Never commit `build/` directories or `.gradle/` folders.
+
+---
+
+### 10. Only README.md Visible on GitHub
+
+**Error:**
+User reported: "the code or project is not pushed. Only README.md file visible in github"
+
+**Cause:**
+Project files were not added to Git staging area before commit. Only `README.md` was tracked.
+
+**Solution:**
+Added all files and committed:
+
+```bash
+git add .
+git commit -m "Add complete Workforce Scheduling Android App"
+git push -u origin main
+```
+
+**Key Takeaway:** Always check `git status` before committing to ensure all intended files are staged. Use `git add .` to add all untracked files.
+
+---
+
+### General Debugging Tips
+
+1. **Check Logcat:** Most runtime errors appear in Android Studio's Logcat with stack traces
+2. **Build Output:** Compilation errors show in the Build output window with file paths and line numbers
+3. **Linter:** Use `read_lints` or Android Studio's inspection to catch errors early
+4. **State Flow Debugging:** Use `.onEach { Log.d("TAG", it) }` to debug Flow emissions
+5. **Compose Preview:** Use `@Preview` annotations to test UI components in isolation
+6. **Database Inspection:** Use Android Studio's Database Inspector to verify Room database state
+7. **Git Status:** Always check `git status` before committing to see what files are tracked
+
+---
+
 **Note**: This app demonstrates production-quality Android development with modern architecture patterns, comprehensive business logic validation, and a polished user interface.
 
