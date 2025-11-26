@@ -49,6 +49,10 @@ class ScheduleRepository(
     
     suspend fun insertShift(shift: Shift): Long = shiftDao.insertShift(shift)
     
+    suspend fun updateShift(shift: Shift) {
+        shiftDao.updateShift(shift)
+    }
+    
     suspend fun deleteShift(shiftId: Long) {
         val shift = shiftDao.getShiftById(shiftId)
         if (shift != null) {

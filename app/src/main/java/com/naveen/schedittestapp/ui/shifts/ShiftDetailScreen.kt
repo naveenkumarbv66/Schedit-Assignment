@@ -36,6 +36,7 @@ fun ShiftDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showAssignDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(shiftId) {
         viewModel.loadShiftDetails(shiftId)
@@ -57,6 +58,13 @@ fun ShiftDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (uiState.shift != null) {
+                        IconButton(onClick = { showEditDialog = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Shift")
+                        }
                     }
                 }
             )
@@ -121,6 +129,17 @@ fun ShiftDetailScreen(
                                 Text("Assign Employee")
                             }
                             Button(
+                                onClick = { showEditDialog = true },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary
+                                )
+                            ) {
+                                Icon(Icons.Default.Edit, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Edit Shift")
+                            }
+                            Button(
                                 onClick = { showDeleteDialog = true },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.error
@@ -129,7 +148,7 @@ fun ShiftDetailScreen(
                             ) {
                                 Icon(Icons.Default.Delete, null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Delete Shift")
+                                Text("Delete")
                             }
                         }
                     }
@@ -268,6 +287,22 @@ fun ShiftDetailScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Edit Shift Dialog
+    if (showEditDialog && uiState.shift != null) {
+        EditShiftDialog(
+            shift = uiState.shift!!,
+            onDismiss = { showEditDialog = false },
+            onSave = { updatedShift ->
+                CoroutineScope(Dispatchers.Main).launch {
+                    val success = viewModel.updateShift(updatedShift)
+                    if (success) {
+                        showEditDialog = false
+                    }
                 }
             }
         )

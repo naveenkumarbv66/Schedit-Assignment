@@ -10,6 +10,7 @@ A native Android application for workforce scheduling that allows managers to vi
    - Display list of available shifts with details (time, location, required skills, staffing)
    - Filter shifts by date and location
    - View detailed shift information with assigned employees
+   - Edit shifts: Modify location, time, skills, and staffing requirements
    - Delete shifts with automatic cascade deletion of all assignments
    - Data integrity: All related employee assignments are automatically removed
 
@@ -338,6 +339,69 @@ The app ensures complete data integrity when deleting shifts:
 - **Schedule Adjustments**: Delete shifts when schedule changes occur
 - **Bulk Operations**: Delete multiple shifts individually as needed
 
+## ✏️ Edit Shift Feature
+
+### Overview
+
+The app allows you to edit existing shifts to update their details such as location, time, required skills, and staffing requirements. This is useful for making adjustments to shifts without having to delete and recreate them.
+
+### How to Edit a Shift
+
+1. **Navigate to Shift Details**
+   - Open the Shifts screen
+   - Tap on any shift card to view details
+
+2. **Open Edit Dialog**
+   - Tap the "Edit" icon in the top-right corner of the screen, OR
+   - Tap the "Edit Shift" button (secondary colored button) at the bottom
+
+3. **Modify Shift Details**
+   - **Location**: Update the shift location
+   - **Start Date**: Change the date (format: YYYY-MM-DD)
+   - **Start Time**: Modify start time (format: HH:mm, 24-hour)
+   - **End Time**: Modify end time (format: HH:mm, 24-hour)
+   - **Required Skills**: Update comma-separated list of skills
+   - **Minimum Staffing**: Adjust the number of employees needed
+
+4. **Save Changes**
+   - Review all changes in the dialog
+   - Tap "Save" to apply changes
+   - The shift details will be updated immediately
+   - Any validation errors will be shown in the dialog
+
+### Validation & Safety
+
+The edit feature includes comprehensive validation:
+
+- **Time Validation**: Ensures end time is after start time
+- **Date Format**: Validates date format (YYYY-MM-DD)
+- **Time Format**: Validates time format (HH:mm, 24-hour)
+- **Required Fields**: Location, date, and times are mandatory
+- **Data Integrity**: Existing employee assignments are preserved (unless time conflicts occur)
+- **Error Feedback**: Clear error messages for invalid inputs
+
+### Important Notes
+
+- **Time Conflicts**: If you change shift times, existing assignments may need to be reviewed for conflicts
+- **Skill Changes**: Updating required skills may affect which employees can be assigned
+- **Assignment Preservation**: Employee assignments are maintained unless they conflict with new times
+- **Real-time Updates**: Changes are immediately reflected in the shift list and detail views
+
+### Technical Implementation
+
+- **Repository Layer**: `updateShift()` method handles the update process
+- **Database**: Room's `@Update` annotation ensures efficient updates
+- **UI Layer**: Form validation prevents invalid data entry
+- **State Management**: ViewModel automatically reloads shift details after update
+
+### Use Cases
+
+- **Time Adjustments**: Change shift start/end times when schedules change
+- **Location Updates**: Move shifts to different locations
+- **Skill Requirements**: Update required skills as job requirements evolve
+- **Staffing Changes**: Adjust minimum staffing levels based on business needs
+- **Corrections**: Fix mistakes in shift details without deleting and recreating
+
 ## 📋 Shift Templates Feature
 
 ### Overview
@@ -413,9 +477,11 @@ The app includes sample data that is automatically loaded on first launch:
 - **Empty States**: Clear messaging when no data is available
 - **Navigation**: Intuitive navigation between screens
 - **Search & Filter**: Easy-to-use search and filter functionality
+- **Edit Functionality**: In-place editing of shifts with form validation
 - **Confirmation Dialogs**: Safe deletion with clear warnings and impact information
 - **Cascade Deletion Feedback**: Shows number of assignments that will be removed before deletion
 - **Data Safety**: All destructive actions require explicit confirmation
+- **Input Validation**: Real-time validation with helpful error messages
 
 ## 🔄 Known Limitations & Future Improvements
 

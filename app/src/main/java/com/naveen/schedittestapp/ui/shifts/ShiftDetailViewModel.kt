@@ -119,5 +119,19 @@ class ShiftDetailViewModel @Inject constructor(
             false
         }
     }
+
+    suspend fun updateShift(shift: Shift): Boolean {
+        return try {
+            repository.updateShift(shift)
+            // Reload shift details to show updated information
+            loadShiftDetails(shift.id)
+            true
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                error = e.message ?: "Failed to update shift"
+            )
+            false
+        }
+    }
 }
 
