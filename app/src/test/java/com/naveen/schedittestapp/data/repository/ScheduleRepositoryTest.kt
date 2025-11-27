@@ -3,6 +3,7 @@ package com.naveen.schedittestapp.data.repository
 import com.naveen.schedittestapp.data.dao.EmployeeDao
 import com.naveen.schedittestapp.data.dao.ShiftAssignmentDao
 import com.naveen.schedittestapp.data.dao.ShiftDao
+import com.naveen.schedittestapp.data.dao.ShiftTemplateDao
 import com.naveen.schedittestapp.data.model.Employee
 import com.naveen.schedittestapp.data.model.EmploymentType
 import com.naveen.schedittestapp.data.model.Shift
@@ -25,6 +26,7 @@ class ScheduleRepositoryTest {
     private lateinit var employeeDao: EmployeeDao
     private lateinit var shiftDao: ShiftDao
     private lateinit var shiftAssignmentDao: ShiftAssignmentDao
+    private lateinit var shiftTemplateDao: ShiftTemplateDao
     private lateinit var repository: ScheduleRepository
 
     @Before
@@ -32,7 +34,8 @@ class ScheduleRepositoryTest {
         employeeDao = mockk()
         shiftDao = mockk()
         shiftAssignmentDao = mockk()
-        repository = ScheduleRepository(employeeDao, shiftDao, shiftAssignmentDao)
+        shiftTemplateDao = mockk()
+        repository = ScheduleRepository(employeeDao, shiftDao, shiftAssignmentDao, shiftTemplateDao)
     }
 
     @Test
